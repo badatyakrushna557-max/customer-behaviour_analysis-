@@ -1,0 +1,271 @@
+use dataanalyst_analyst_project
+select * from [dbo].[costumer_behaviour_analysis]
+
+---1)which category generet high revenue
+select category,round(sum([ purchase_amount]),2)as highest_revenue from [dbo].[costumer_behaviour_analysis] group by category order by highest_revenue;
+
+---? bussines problem :- company does not know which category contribute high revenue
+--- impect:-prioritize high_performing revenue
+           --optimize inventry planing
+           --improves marketing roi
+
+ ---2)are discounts actually increasing purchaging value?
+ select discount_applied,round(sum([ purchase_amount]),2)as highest_revenue from [dbo].[costumer_behaviour_analysis] group by discount_applied
+
+ ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ --3)what is the total revenue generate by female and male?
+ select gender,round(sum([ purchase_amount]),2)as highest_revenue from [dbo].[costumer_behaviour_analysis] group by gender order by highest_revenue desc
+
+ ---? business problem:-lack of uder standing of revenue contribution by gendder sender segments
+   ----- impact:-
+                ---helps design marketing kampaign
+                ---improve customer sugetion statergy
+                ---enhance personalization efforts
+
+---4)which customer used a discount but stillspent moremore then the purchase amount?
+select customer_id,[ purchase_amount],discount_applied from [dbo].[costumer_behaviour_analysis] where discount_applied = 'yes'
+and [ purchase_amount] > (select avg([ purchase_amount]) from [dbo].[costumer_behaviour_analysis])
+
+---? business problem:- companys cannot identifyhigh soenfing customers who are also high discount users?
+
+
+---impact:-
+         --/identify premium discout_dendetive customer
+         --anaable targeted discount camign
+        -- improve custumer retetion snd revenue
+
+---5)which are the top/buttom 5 products with the highest review rating
+
+select top 5 item_purchased,avg(review_rating)as avg_ratings from [dbo].[costumer_behaviour_analysis]
+group by item_purchased order by avg_ratings desc
+
+select top 5 item_purchased,avg(review_rating)as avg_ratings from [dbo].[costumer_behaviour_analysis]
+group by item_purchased order by avg_ratings asc
+
+?---business problem:- novisiblity into product performance based on customers satisfaction.
+-- impaact:-
+              --- promotes high performing products
+              --- IMPROVE HIGH LOW RATED PRODUCTS
+              ----ENHANCES  customer exprience
+
+---6)average purchage : standard vs express shiping
+
+select shipping_type,count(distinct customer_id) as order_placed,round(avg([ purchase_amount]),2)as avg_purchase ,round(sum([ purchase_amount]),2)as revenue
+from [dbo].[costumer_behaviour_analysis]
+--where shipping_type in ('standard','express') 
+group by shipping_type
+
+---? business problem:-uncler if faster shioing leads to highee shiping
+
+---impact:-
+           ---helps optimise shiping pricing statergies
+           ---encoreges premiomshiping asoption
+           ---increagesaverage order value
+
+
+---7). do suscribedcustomers spend more? compare avrage speed and total revenue between subscibes and non_subscribes
+
+select subscription_status,count(customer_id)as users,round(avg([ purchase_amount]),2)As revenue,round(sum([ purchase_amount]),2)as total_revenue
+       from [dbo].[costumer_behaviour_analysis] group by subscription_status order by  total_revenue
+
+---? business problem:- the efectiveness of subsciption is unknown.
+
+---impact:-
+           ---vaalidates subsciption model pwrformance
+           --- improve customer  loyality program
+           --- increases life time value(clv)
+
+
+---8). top 5 with high discout usage %
+
+ select 
+       TOP 5
+       item_purchased, 
+       count(item_purchased)as total_number_of_time_sold,
+       count( caSE when discount_applied='yes' THEN 1 end)as total_number_of_time_sold_when_discount_applied,
+       count( caSE when discount_applied='yes' THEN 1 end)*100.0 / count(*)as discount_percentage
+       from costumer_behaviour_analysis 
+       group by item_purchased
+       order by discount_percentage desc
+
+--? business problem:- some products may be overly dependant on discounts
+--- impact:-
+          
+          ---identifies discount_driven prodict
+          ---helps uptimize pricing strategy
+          ---reduce profit margin loss
+
+
+---9). sagement customer new,returnlng and loyal based on their toatal nuber of previous purchage, and count of each sagment
+
+SELECT
+    CASE
+        WHEN previous_purchases = 0 THEN 'new customer'
+        WHEN previous_purchases BETWEEN 1 AND 15 THEN 'returning customer'
+        ELSE 'loyal customer'
+    END AS customer_segment,
+    COUNT(*) AS customer_count
+FROM costumer_behaviour_analysis
+GROUP BY
+    CASE
+        WHEN previous_purchases = 0 THEN 'new customer'
+        WHEN previous_purchases BETWEEN 1 AND 15 THEN 'returning customer'
+        ELSE 'loyal customer'
+    END;
+
+---? business problem:-lack of customersagmantationleads to genericstrategies.
+
+---IMPACT:-
+          ---ANABLES personalized marketing
+          ---improves retentions trategies
+          ---increases conversion rates
+
+
+---10).what are the top 3 most purchased products within each category?
+
+WITH CTE AS
+(
+select
+      category,
+      item_purchased,
+      count(item_purchased)as most_purchased,
+      rank() over(partition by category order by count(item_purchased)desc)as rnk
+      from costumer_behaviour_analysis
+      group by category,item_purchased
+    )
+select* from CTE
+where RNK > 1
+
+---? BUAINESS PROBLEN :-THE COMPNY doesn't knowknow top performing productswith in categories.
+
+---impact:-
+          ---improves product p;acement & recomodations
+          ---helps inventoryoptimization
+          --- increases sales through best_sallers
+
+---11.are customers  who reapet buyers (more then 5 previous purchases)also likely to subscribes?
+
+    select 
+          case
+              when previous_purchases > 5 then 'repeat buyers'
+                ELSE 'NORMALbuyers'
+                end as customer_type,
+                subscription_status,
+                count(* )as customer_count,
+count(*) * 100.0 / sum(count(*)) over(PARTITION by CASE 
+                                      when previous_purchases > 5 then 'repeat buyers'
+                                      ELSE 'NORMALbuyers'
+                                      END
+                                      )AS PERCENTs
+                from [dbo].[costumer_behaviour_analysis]
+                group by case
+                             when previous_purchases > 5 then 'repeat buyers'
+                             ELSE'NORMALbuyers'
+               end,subscription_status
+       
+
+---12).what is the vanue contribution of each age group  ?
+
+select 
+      case
+          when age between 18 and 25 then '18-25'
+          when age between 26 and 35 then '26-35'
+          when age between 36 and 50 then '36-50'
+          else '51+'
+    end as age_group,
+    round(sum([ purchase_amount]),2)as total_revenue
+from [dbo].[costumer_behaviour_analysis]
+group by case
+              when age between 18 and 25 then '18-25'
+          when age between 26 and 35 then '26-35'
+          when age between 36 and 50 then '36-50'
+          else '51+'
+        end
+           order by total_revenue desc
+
+---? business problem:-no visibllity into into which age group contribute most revenue.
+
+---- impact:-
+            ----anables a age based targeting 
+            ----anhances marketingeficiency
+  
+  ---13).•	compny don't know  Ranked cities by Total Spend vs. Average Order Value (AOV).
+
+
+SELECT top 10
+    location,
+
+    SUM([ purchase_amount]) AS Total_Spend,
+
+    COUNT([ purchase_amount]) AS Total_Orders,
+
+    ROUND(
+        SUM([ purchase_amount]) * 1.0 / COUNT(customer_id),
+        2
+    ) AS Average_Order_Value,
+
+    RANK() OVER (
+        ORDER BY SUM([ purchase_amount]) DESC
+    ) AS Spend_Rank,
+
+    RANK() OVER (
+        ORDER BY 
+        SUM([ purchase_amount]) * 1.0 / COUNT(customer_id) DESC
+    ) AS AOV_Rank
+
+FROM [dbo].[costumer_behaviour_analysis]
+GROUP BY location
+
+ORDER BY Spend_Rank;
+
+---business pronlem:-Where to invest more
+                   --Which regions need improvement
+                   --Which cities generate maximum profit
+    ---impact:-
+             -- Reduces unnecessary spending
+             --Improves ROI
+             --Supports strategic planning
+               
+
+---?14).The business needed to identify high-performing product categories to optimize sales strategy, 
+--inventory planning, and revenue growth, revealing Electronics as the dominant contributor to total spend.
+
+SELECT 
+    category,
+    SUM([ purchase_amount]) AS total_spend,
+
+    ROUND(
+        (SUM([ purchase_amount]) * 100.0) /
+        (SELECT SUM([ purchase_amount])
+         FROM [costumer_behaviour_analysis] ),
+    2) AS spend_percentage
+
+FROM  [dbo].[costumer_behaviour_analysis]
+GROUP BY category
+ORDER BY total_spend DESC;
+
+--business impact:-
+---Identified Electronics as the top revenue-generating category.
+---Helped improve inventory and marketing decisions.
+---Increased focus on high-profit business segments.
+
+---15).
+
+WITH season_revenue AS (
+    SELECT top 5
+        season,
+        SUM([ purchase_amount]) AS total_revenue
+    FROM[costumer_behaviour_analysis]
+    GROUP BY season
+)
+
+SELECT top 10
+    season,
+    [ purchase_amount],
+
+    ROUND(
+        AVG( [ purchase_amount]) OVER (), 
+    2) AS avg_season_revenue
+
+FROM[costumer_behaviour_analysis]
+ORDER BY  [ purchase_amount] DESC;
